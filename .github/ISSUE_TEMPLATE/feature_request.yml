@@ -1,0 +1,68 @@
+name: ✨ 機能リクエスト
+description: 新機能や改善の提案
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        機能リクエストありがとうございます。システムの改善に役立てます。
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 解決したい課題
+      description: どのような課題や不便を解決したいですか？
+      placeholder: |
+        例：現在、ケース記録の検索に時間がかかり、訪問前の準備が十分にできない
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: 希望する解決策
+      description: どのような機能があれば課題が解決しますか？
+      placeholder: |
+        例：キーワードで過去の記録を即座に検索できる機能
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 代替案
+      description: 他に検討した解決策があれば教えてください
+      placeholder: |
+        例：全文検索ではなく、タグ付け機能でも良い
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: 優先度
+      description: この機能の優先度をどう考えますか？
+      options:
+        - 高（日常業務に大きな影響）
+        - 中（あると便利）
+        - 低（将来的に欲しい）
+    validations:
+      required: true
+
+  - type: dropdown
+    id: user-type
+    attributes:
+      label: ユーザータイプ
+      description: この機能を主に使うのは誰ですか？
+      options:
+        - ケースワーカー
+        - スーパーバイザー
+        - 管理者
+        - すべてのユーザー
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: 追加情報
+      description: 参考資料やスクリーンショットがあれば添付してください

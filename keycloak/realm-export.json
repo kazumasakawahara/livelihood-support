@@ -1,0 +1,324 @@
+{
+  "id": "livelihood-support",
+  "realm": "livelihood-support",
+  "displayName": "生活保護受給者尊厳支援システム",
+  "displayNameHtml": "<b>生活保護受給者尊厳支援システム</b>",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 5,
+  "defaultSignatureAlgorithm": "RS256",
+  "accessTokenLifespan": 1800,
+  "accessTokenLifespanForImplicitFlow": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "offlineSessionIdleTimeout": 2592000,
+  "accessCodeLifespan": 60,
+  "accessCodeLifespanUserAction": 300,
+  "accessCodeLifespanLogin": 1800,
+  "actionTokenGeneratedByAdminLifespan": 43200,
+  "actionTokenGeneratedByUserLifespan": 300,
+  "roles": {
+    "realm": [
+      {
+        "name": "caseworker",
+        "description": "ケースワーカー - 担当ケースの読み書きが可能",
+        "composite": false
+      },
+      {
+        "name": "supervisor",
+        "description": "スーパーバイザー - チーム全体の閲覧、監査ログ閲覧が可能",
+        "composite": true,
+        "composites": {
+          "realm": ["caseworker"]
+        }
+      },
+      {
+        "name": "admin",
+        "description": "管理者 - 全権限を持つ",
+        "composite": true,
+        "composites": {
+          "realm": ["supervisor", "auditor"]
+        }
+      },
+      {
+        "name": "auditor",
+        "description": "監査者 - 監査ログ閲覧のみ可能",
+        "composite": false
+      }
+    ]
+  },
+  "groups": [
+    {
+      "name": "福祉課",
+      "path": "/福祉課",
+      "subGroups": [
+        {
+          "name": "第1係",
+          "path": "/福祉課/第1係"
+        },
+        {
+          "name": "第2係",
+          "path": "/福祉課/第2係"
+        },
+        {
+          "name": "第3係",
+          "path": "/福祉課/第3係"
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "email": "admin@example.com",
+      "firstName": "システム",
+      "lastName": "管理者",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["admin"]
+    },
+    {
+      "username": "supervisor1",
+      "email": "supervisor1@example.com",
+      "firstName": "福祉太郎",
+      "lastName": "係長",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "supervisor123",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["supervisor"],
+      "groups": ["/福祉課/第1係"]
+    },
+    {
+      "username": "caseworker1",
+      "email": "caseworker1@example.com",
+      "firstName": "支援花子",
+      "lastName": "主任",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "caseworker123",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["caseworker"],
+      "groups": ["/福祉課/第1係"]
+    },
+    {
+      "username": "caseworker2",
+      "email": "caseworker2@example.com",
+      "firstName": "援助次郎",
+      "lastName": "",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "caseworker123",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["caseworker"],
+      "groups": ["/福祉課/第2係"]
+    },
+    {
+      "username": "auditor1",
+      "email": "auditor1@example.com",
+      "firstName": "監査",
+      "lastName": "担当",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "auditor123",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["auditor"]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "livelihood-support-app",
+      "name": "生活保護受給者尊厳支援システム - Streamlit",
+      "description": "Streamlit Webアプリケーション用クライアント",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "redirectUris": [
+        "http://localhost:8501/*",
+        "http://localhost:8501"
+      ],
+      "webOrigins": [
+        "http://localhost:8501"
+      ],
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "fullScopeAllowed": true,
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ],
+      "protocolMappers": [
+        {
+          "name": "realm-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "groups",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "livelihood-support-api",
+      "name": "生活保護受給者尊厳支援システム - FastAPI",
+      "description": "FastAPI REST API用クライアント",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "api-client-secret-change-in-production",
+      "redirectUris": [
+        "http://localhost:8000/*"
+      ],
+      "webOrigins": [
+        "http://localhost:8000"
+      ],
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "bearerOnly": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "fullScopeAllowed": true,
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ]
+    }
+  ],
+  "clientScopes": [
+    {
+      "name": "roles",
+      "description": "OpenID Connect scope for add user roles to the access token",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "${rolesScopeConsentText}"
+      },
+      "protocolMappers": [
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "foo",
+            "access.token.claim": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String",
+            "multivalued": "true"
+          }
+        },
+        {
+          "name": "audience resolve",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-resolve-mapper",
+          "consentRequired": false,
+          "config": {}
+        }
+      ]
+    }
+  ],
+  "browserSecurityHeaders": {
+    "contentSecurityPolicyReportOnly": "",
+    "xContentTypeOptions": "nosniff",
+    "xRobotsTag": "none",
+    "xFrameOptions": "SAMEORIGIN",
+    "contentSecurityPolicy": "frame-src 'self'; frame-ancestors 'self'; object-src 'none';",
+    "xXSSProtection": "1; mode=block",
+    "strictTransportSecurity": "max-age=31536000; includeSubDomains"
+  },
+  "smtpServer": {},
+  "eventsEnabled": true,
+  "eventsListeners": ["jboss-logging"],
+  "enabledEventTypes": [
+    "LOGIN",
+    "LOGIN_ERROR",
+    "LOGOUT",
+    "LOGOUT_ERROR",
+    "CODE_TO_TOKEN",
+    "CODE_TO_TOKEN_ERROR",
+    "REFRESH_TOKEN",
+    "REFRESH_TOKEN_ERROR"
+  ],
+  "adminEventsEnabled": true,
+  "adminEventsDetailsEnabled": true,
+  "internationalizationEnabled": true,
+  "supportedLocales": ["ja", "en"],
+  "defaultLocale": "ja"
+}
