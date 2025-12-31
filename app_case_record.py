@@ -30,6 +30,7 @@ from lib.auth import (
     render_user_info,
     get_current_user,
     has_role,
+    is_auth_disabled,
 )
 
 # --- 初期設定 ---
@@ -44,6 +45,7 @@ init_session_state()
 
 # =============================================================================
 # 認証チェック
+# 環境変数 SKIP_AUTH=true で認証をスキップ可能（開発環境用）
 # =============================================================================
 
 if not require_authentication():
@@ -77,7 +79,13 @@ with st.sidebar:
     st.divider()
 
     # 認証ユーザー情報表示
-    render_user_info()
+    if is_auth_disabled():
+        # 開発モード: シンプル表示
+        st.write(f"👤 ログイン中: **{current_user.get('name')}**")
+        st.caption("（開発モード - SKIP_AUTH=true）")
+    else:
+        # 本番モード: Keycloak連携
+        render_user_info()
 
     st.divider()
     

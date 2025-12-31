@@ -4,7 +4,7 @@
   "displayName": "生活保護受給者尊厳支援システム",
   "displayNameHtml": "<b>生活保護受給者尊厳支援システム</b>",
   "enabled": true,
-  "sslRequired": "external",
+  "sslRequired": "none",
   "registrationAllowed": false,
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,

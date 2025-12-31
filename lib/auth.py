@@ -29,6 +29,33 @@ except ImportError:
 # 設定
 # =============================================================================
 
+def is_auth_disabled() -> bool:
+    """
+    認証が無効化されているかチェック
+
+    環境変数 SKIP_AUTH=true で認証をスキップ可能（開発環境用）
+
+    Returns:
+        bool: 認証無効化時True
+    """
+    return os.getenv("SKIP_AUTH", "false").lower() == "true"
+
+
+def get_dev_user() -> dict:
+    """
+    開発用ダミーユーザー情報を返す
+
+    Returns:
+        dict: 開発用ユーザー情報
+    """
+    return {
+        "username": os.getenv("DEV_USERNAME", "dev_user"),
+        "name": os.getenv("DEV_USER_NAME", "開発ユーザー"),
+        "email": "dev@example.com",
+        "roles": ["caseworker", "supervisor"],  # 開発時は十分な権限を付与
+    }
+
+
 def get_keycloak_config() -> dict:
     """Keycloak設定を環境変数から取得"""
     return {
@@ -268,6 +295,10 @@ def get_current_user() -> Optional[dict]:
     Returns:
         ユーザー情報、または未認証時None
     """
+    # 開発モード: session_stateから直接取得
+    if is_auth_disabled():
+        return st.session_state.get('user_info') or get_dev_user()
+
     if not is_authenticated():
         return None
     return st.session_state.get('user_info')
@@ -341,17 +372,9 @@ def get_logout_url() -> str:
 # =============================================================================
 
 def render_login_button():
-    """ログインボタンを表示"""
+    """ログインボタンを表示（st.link_button使用）"""
     auth_url = get_authorization_url()
-    st.markdown(
-        f'<a href="{auth_url}" target="_self">'
-        '<button style="background-color: #4CAF50; color: white; '
-        'padding: 10px 24px; border: none; cursor: pointer; '
-        'border-radius: 4px; font-size: 16px;">'
-        'ログイン'
-        '</button></a>',
-        unsafe_allow_html=True
-    )
+    st.link_button("🔐 ログイン", auth_url, type="primary", use_container_width=True)
 
 
 def render_user_info():
@@ -389,9 +412,16 @@ def require_authentication():
     """
     認証を要求（認証されていない場合はログイン画面を表示）
 
+    環境変数 SKIP_AUTH=true で認証をスキップ可能（開発環境用）
+
     Returns:
         bool: 認証済みの場合True
     """
+    # 開発環境: 認証スキップ
+    if is_auth_disabled():
+        st.session_state.user_info = get_dev_user()
+        return True
+
     init_auth_session()
     handle_oauth_callback()
 
