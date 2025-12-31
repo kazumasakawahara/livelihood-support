@@ -1,0 +1,11 @@
+username,email,firstname,lastname,role,group
+yamada.taro,yamada.taro@city.example.lg.jp,太郎,山田,caseworker,/福祉課/第1係
+suzuki.hanako,suzuki.hanako@city.example.lg.jp,花子,鈴木,supervisor,/福祉課/第1係
+tanaka.jiro,tanaka.jiro@city.example.lg.jp,次郎,田中,caseworker,/福祉課/第1係
+sato.yuki,sato.yuki@city.example.lg.jp,由紀,佐藤,caseworker,/福祉課/第2係
+watanabe.ken,watanabe.ken@city.example.lg.jp,健,渡辺,supervisor,/福祉課/第2係
+ito.mika,ito.mika@city.example.lg.jp,美香,伊藤,caseworker,/福祉課/第2係
+kobayashi.takeshi,kobayashi.takeshi@city.example.lg.jp,健,小林,caseworker,/福祉課/第3係
+yoshida.akiko,yoshida.akiko@city.example.lg.jp,明子,吉田,supervisor,/福祉課/第3係
+kato.hiroshi,kato.hiroshi@city.example.lg.jp,浩,加藤,auditor,
+admin.system,admin.system@city.example.lg.jp,システム,管理者,admin,

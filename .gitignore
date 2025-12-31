@@ -1,0 +1,118 @@
+# ==============================================================================
+# .gitignore - 生活保護受給者尊厳支援データベース
+# ==============================================================================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Linting
+.ruff_cache/
+
+# Environment variables (NEVER commit these)
+.env
+.env.local
+.env.*.local
+!.env.example
+!.env.production.example
+
+# Neo4j runtime data
+neo4j_data/
+neo4j_logs/
+neo4j_plugins/
+
+# Keycloak runtime data
+keycloak_data/
+
+# Monitoring runtime data
+prometheus_data/
+grafana_data/
+alertmanager_data/
+
+# Log files
+*.log
+logs/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+
+# Backup files
+*.bak
+*.backup
+
+# SSL certificates (if stored locally)
+*.pem
+*.key
+*.crt
+*.csr
+!nginx/ssl/.gitkeep
+
+# Docker
+docker-compose.override.yml
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Coverage reports
+coverage.xml
+*.cover
+
+# Test outputs
+test-results/
+playwright-report/
+test-results.xml

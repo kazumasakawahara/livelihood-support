@@ -1,0 +1,142 @@
+# ==============================================================================
+# Prometheus Alert Rules
+# 生活保護受給者尊厳支援システム アラートルール
+# ==============================================================================
+
+groups:
+  # ============================================================================
+  # API サービスアラート
+  # ============================================================================
+  - name: api_alerts
+    rules:
+      - alert: APIDown
+        expr: up{job="fastapi"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API サーバーがダウンしています"
+          description: "FastAPI サーバーが {{ $labels.instance }} で 1分以上応答していません"
+
+      - alert: APIHighLatency
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job="fastapi"}[5m])) by (le)) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API レスポンス時間が高い"
+          description: "95パーセンタイルのレスポンス時間が 1秒を超えています"
+
+      - alert: APIHighErrorRate
+        expr: sum(rate(http_requests_total{job="fastapi", status=~"5.."}[5m])) / sum(rate(http_requests_total{job="fastapi"}[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API エラー率が高い"
+          description: "5xxエラー率が 5% を超えています"
+
+      - alert: APIHighRequestRate
+        expr: sum(rate(http_requests_total{job="fastapi"}[1m])) > 100
+        for: 5m
+        labels:
+          severity: info
+        annotations:
+          summary: "API リクエスト率が高い"
+          description: "リクエスト率が 100 req/s を超えています"
+
+  # ============================================================================
+  # Neo4j データベースアラート
+  # ============================================================================
+  - name: neo4j_alerts
+    rules:
+      - alert: Neo4jDown
+        expr: up{job="neo4j"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Neo4j がダウンしています"
+          description: "Neo4j データベースが {{ $labels.instance }} で 1分以上応答していません"
+
+      - alert: Neo4jHighMemoryUsage
+        expr: neo4j_dbms_vm_heap_used / neo4j_dbms_vm_heap_max > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Neo4j ヒープ使用率が高い"
+          description: "Neo4j のヒープメモリ使用率が 90% を超えています"
+
+      - alert: Neo4jSlowQueries
+        expr: rate(neo4j_database_transaction_committed[5m]) < 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Neo4j クエリが遅い"
+          description: "Neo4j のトランザクション完了率が低下しています"
+
+  # ============================================================================
+  # インフラストラクチャアラート
+  # ============================================================================
+  - name: infrastructure_alerts
+    rules:
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU 使用率が高い"
+          description: "CPU 使用率が {{ $labels.instance }} で 80% を超えています: {{ $value }}%"
+
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "メモリ使用率が高い"
+          description: "メモリ使用率が {{ $labels.instance }} で 85% を超えています: {{ $value }}%"
+
+      - alert: HighDiskUsage
+        expr: (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"})) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ディスク使用率が高い"
+          description: "ディスク使用率が {{ $labels.mountpoint }} で 80% を超えています: {{ $value }}%"
+
+      - alert: CriticalDiskUsage
+        expr: (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"})) * 100 > 95
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "ディスク使用率が危険"
+          description: "ディスク使用率が {{ $labels.mountpoint }} で 95% を超えています: {{ $value }}%"
+
+  # ============================================================================
+  # ビジネスメトリクスアラート
+  # ============================================================================
+  - name: business_alerts
+    rules:
+      - alert: NoRecordsCreated
+        expr: increase(http_requests_total{job="fastapi", method="POST", handler="/api/v1/records"}[1h]) == 0
+        for: 2h
+        labels:
+          severity: info
+        annotations:
+          summary: "ケース記録が作成されていません"
+          description: "過去2時間、新しいケース記録が作成されていません"
+
+      - alert: HighRecordCreationRate
+        expr: rate(http_requests_total{job="fastapi", method="POST", handler="/api/v1/records"}[5m]) > 10
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "ケース記録作成率が異常に高い"
+          description: "ケース記録の作成率が通常より高くなっています"

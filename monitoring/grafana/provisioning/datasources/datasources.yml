@@ -1,0 +1,28 @@
+# ==============================================================================
+# Grafana Datasources Configuration
+# ==============================================================================
+
+apiVersion: 1
+
+datasources:
+  # Prometheus データソース
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      httpMethod: POST
+      manageAlerts: true
+      prometheusType: Prometheus
+      prometheusVersion: 2.47.0
+
+  # Alertmanager データソース
+  - name: Alertmanager
+    type: alertmanager
+    access: proxy
+    url: http://alertmanager:9093
+    editable: false
+    jsonData:
+      implementation: prometheus

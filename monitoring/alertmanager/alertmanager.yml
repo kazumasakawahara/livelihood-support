@@ -1,0 +1,89 @@
+# ==============================================================================
+# Alertmanager Configuration
+# 生活保護受給者尊厳支援システム アラート管理設定
+# ==============================================================================
+
+global:
+  # グローバル設定
+  resolve_timeout: 5m
+
+# ルーティング設定
+route:
+  # デフォルトレシーバー
+  receiver: 'default-receiver'
+  # グループ化設定
+  group_by: ['alertname', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+  # ルーティングルール
+  routes:
+    # Critical アラート
+    - match:
+        severity: critical
+      receiver: 'critical-receiver'
+      group_wait: 10s
+      repeat_interval: 1h
+
+    # Warning アラート
+    - match:
+        severity: warning
+      receiver: 'warning-receiver'
+      repeat_interval: 4h
+
+    # Info アラート
+    - match:
+        severity: info
+      receiver: 'info-receiver'
+      repeat_interval: 12h
+
+# レシーバー設定
+receivers:
+  # デフォルトレシーバー（Webhook）
+  - name: 'default-receiver'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook'
+        send_resolved: true
+
+  # Critical レシーバー
+  - name: 'critical-receiver'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook/critical'
+        send_resolved: true
+    # メール通知（設定例）
+    # email_configs:
+    #   - to: 'admin@example.com'
+    #     from: 'alertmanager@example.com'
+    #     smarthost: 'smtp.example.com:587'
+    #     auth_username: 'alertmanager@example.com'
+    #     auth_password: 'password'
+    #     send_resolved: true
+
+  # Warning レシーバー
+  - name: 'warning-receiver'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook/warning'
+        send_resolved: true
+
+  # Info レシーバー
+  - name: 'info-receiver'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook/info'
+        send_resolved: false
+
+# 抑制ルール
+inhibit_rules:
+  # Critical が発火中は Warning を抑制
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'instance']
+
+  # Warning が発火中は Info を抑制
+  - source_match:
+      severity: 'warning'
+    target_match:
+      severity: 'info'
+    equal: ['alertname', 'instance']

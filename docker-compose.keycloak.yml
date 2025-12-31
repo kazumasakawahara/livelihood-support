@@ -1,0 +1,76 @@
+# Keycloak検証環境 - 生活保護受給者尊厳支援データベース
+# TECHNICAL_STANDARDS.md 4.1 認証基盤準拠
+#
+# 起動: docker compose -f docker-compose.keycloak.yml up -d
+# 停止: docker compose -f docker-compose.keycloak.yml down
+
+services:
+  # PostgreSQL - Keycloakバックエンド
+  keycloak-db:
+    image: postgres:16-alpine
+    container_name: livelihood-keycloak-db
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak_dev_password}
+    volumes:
+      - keycloak_postgres_data:/var/lib/postgresql/data
+    networks:
+      - keycloak-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Keycloak 23.x - OIDC認証基盤
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    container_name: livelihood-keycloak
+    environment:
+      # 管理者設定
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin_dev_password}
+      # データベース接続
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak_dev_password}
+      # 開発モード設定
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_PORT: 8080
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KC_HTTP_ENABLED: "true"
+      # ヘルスチェック有効化
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+      # ログ設定
+      KC_LOG_LEVEL: INFO
+    command:
+      - start-dev
+      - --import-realm
+    ports:
+      - "8080:8080"
+    networks:
+      - keycloak-network
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+networks:
+  keycloak-network:
+    driver: bridge
+
+volumes:
+  keycloak_postgres_data:
