@@ -143,52 +143,92 @@ docker exec -it livelihood-keycloak bash
 
 ### CSVからの一括登録スクリプト
 
-`scripts/import_users.sh` を作成して使用:
+本プロジェクトには一括登録スクリプト `scripts/import_users.sh` が用意されています。
+
+#### 基本的な使い方
 
 ```bash
-#!/bin/bash
-# Usage: ./scripts/import_users.sh users.csv
+# サンプルCSVを確認
+cat scripts/users_sample.csv
 
-CSV_FILE=$1
-REALM="livelihood-support"
+# ドライラン（実際には登録せず確認のみ）
+./scripts/import_users.sh scripts/users_sample.csv --dry-run
 
-while IFS=, read -r username email firstname lastname role group; do
-  # ヘッダー行をスキップ
-  [ "$username" = "username" ] && continue
-
-  echo "Creating user: $username"
-
-  # ユーザー作成
-  /opt/keycloak/bin/kcadm.sh create users \
-    -r "$REALM" \
-    -s username="$username" \
-    -s email="$email" \
-    -s firstName="$firstname" \
-    -s lastName="$lastname" \
-    -s enabled=true
-
-  # パスワード設定
-  /opt/keycloak/bin/kcadm.sh set-password \
-    -r "$REALM" \
-    --username "$username" \
-    --new-password "ChangeMe123!" \
-    --temporary
-
-  # ロール割り当て
-  /opt/keycloak/bin/kcadm.sh add-roles \
-    -r "$REALM" \
-    --uusername "$username" \
-    --rolename "$role"
-
-  echo "Created: $username with role $role"
-done < "$CSV_FILE"
+# 実際に登録
+./scripts/import_users.sh scripts/users_sample.csv
 ```
 
-**CSVファイル形式** (`users.csv`):
+#### オプション
+
+| オプション | 説明 |
+|-----------|------|
+| `-h, --help` | ヘルプを表示 |
+| `-d, --dry-run` | 実際には登録せず、処理内容を表示 |
+| `-p, --password PWD` | 初期パスワードを指定（デフォルト: ChangeMe123!） |
+| `--no-docker` | Dockerを使用せずローカルで実行 |
+
+#### 環境変数
+
+| 変数名 | デフォルト値 | 説明 |
+|--------|-------------|------|
+| `KEYCLOAK_URL` | http://localhost:8080 | Keycloak URL |
+| `KEYCLOAK_REALM` | livelihood-support | Realm名 |
+| `KEYCLOAK_ADMIN` | admin | 管理者ユーザー名 |
+| `KEYCLOAK_ADMIN_PASSWORD` | admin_dev_password | 管理者パスワード |
+| `DEFAULT_PASSWORD` | ChangeMe123! | 初期パスワード |
+| `KEYCLOAK_CONTAINER` | livelihood-keycloak | Dockerコンテナ名 |
+
+#### CSVファイル形式
+
 ```csv
 username,email,firstname,lastname,role,group
 yamada.taro,yamada@example.lg.jp,太郎,山田,caseworker,/福祉課/第1係
 suzuki.hanako,suzuki@example.lg.jp,花子,鈴木,supervisor,/福祉課/第1係
+```
+
+| 列名 | 必須 | 説明 |
+|------|------|------|
+| username | ○ | ログインID |
+| email | ○ | メールアドレス |
+| firstname | ○ | 名 |
+| lastname | ○ | 姓 |
+| role | ○ | ロール（caseworker/supervisor/admin/auditor） |
+| group | - | グループパス（例: /福祉課/第1係） |
+
+#### 実行例
+
+```bash
+# 本番環境での実行例
+KEYCLOAK_ADMIN_PASSWORD="本番パスワード" \
+DEFAULT_PASSWORD="InitialPassword!" \
+./scripts/import_users.sh production_users.csv
+```
+
+#### スクリプトの出力例
+
+```
+==============================================
+  Keycloak ユーザー一括登録
+==============================================
+
+[INFO] Realm: livelihood-support
+[INFO] Keycloak URL: http://localhost:8080
+[INFO] CSVファイル: users.csv
+[INFO] 初期パスワード: ChangeMe123!
+
+[INFO] Keycloakに管理者としてログイン中...
+[SUCCESS] Keycloakにログインしました
+
+[INFO] ユーザー作成中: yamada.taro (山田 太郎)
+[SUCCESS] ユーザー 'yamada.taro' を作成しました (ロール: caseworker)
+
+[INFO] ユーザー作成中: suzuki.hanako (鈴木 花子)
+[SUCCESS] ユーザー 'suzuki.hanako' を作成しました (ロール: supervisor)
+
+==============================================
+  処理完了
+==============================================
+[SUCCESS] 成功: 2 件
 ```
 
 ---
