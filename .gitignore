@@ -105,6 +105,9 @@ temp/
 # Docker
 docker-compose.override.yml
 
+# Nginx local SSL config (environment-specific)
+nginx/conf.d/ssl.conf
+
 # Jupyter Notebook
 .ipynb_checkpoints/
 

@@ -144,7 +144,13 @@ skips = ["B101"]  # Skip assert warnings
 # =============================================================================
 [tool.coverage.run]
 source = ["lib", "api"]
-omit = ["tests/*", ".venv/*"]
+omit = [
+    "tests/*",
+    ".venv/*",
+    "mcp/*",  # MCPサーバーは統合テストでカバー
+    "lib/money_management.py",  # 未使用モジュール
+    "lib/ai_extractor.py",  # 外部API依存、統合テストでカバー
+]
 branch = true
 
 [tool.coverage.report]

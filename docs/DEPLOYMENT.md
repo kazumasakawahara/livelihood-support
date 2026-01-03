@@ -78,15 +78,20 @@ sudo cp /etc/letsencrypt/live/your-domain.example.com/privkey.pem nginx/ssl/
 sudo chown -R $USER:$USER nginx/ssl
 ```
 
-#### 自己署名証明書（テスト用）
+#### 自己署名証明書（開発・テスト用）
 
 ```bash
-# 自己署名証明書生成
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-  -keyout nginx/ssl/privkey.pem \
-  -out nginx/ssl/fullchain.pem \
-  -subj "/CN=localhost"
+# 開発環境用SSL証明書生成スクリプトを使用（推奨）
+./scripts/generate_ssl_certs.sh
+
+# または手動で生成
+./scripts/generate_ssl_certs.sh ./nginx/ssl your-domain.local 365
 ```
+
+このスクリプトは以下を生成します:
+- 4096ビットRSA秘密鍵（privkey.pem）
+- SHA-256自己署名証明書（fullchain.pem）- SAN対応、localhost含む
+- DHパラメータ（dhparam.pem）- Forward Secrecy強化用
 
 ### 5. Nginx SSL設定
 

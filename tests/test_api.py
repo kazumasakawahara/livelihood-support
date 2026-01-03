@@ -71,6 +71,132 @@ class TestHealthCheck:
         assert "message" in data
         assert data["version"] == "1.0.0"
 
+    def test_liveness_check(self, client):
+        """ライブネスチェックが成功する"""
+        response = client.get("/health/live")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "alive"
+        assert "timestamp" in data
+
+    @patch('api.main.check_neo4j_connection')
+    def test_readiness_check_healthy(self, mock_check, client):
+        """レディネスチェック（DB接続正常）"""
+        mock_check.return_value = {"status": "healthy", "latency_ms": 5.0}
+
+        response = client.get("/health/ready")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "ready"
+        assert "timestamp" in data
+        assert "checks" in data
+        assert data["checks"]["neo4j"]["status"] == "healthy"
+
+    @patch('api.main.check_neo4j_connection')
+    def test_readiness_check_unhealthy(self, mock_check, client):
+        """レディネスチェック（DB接続失敗）"""
+        mock_check.return_value = {"status": "unhealthy", "error": "Connection refused"}
+
+        response = client.get("/health/ready")
+
+        assert response.status_code == 503
+        data = response.json()
+        assert data["status"] == "not_ready"
+        assert data["checks"]["neo4j"]["status"] == "unhealthy"
+
+
+class TestNeo4jConnection:
+    """Neo4j接続確認のテスト"""
+
+    @patch('api.main.get_driver')
+    def test_check_neo4j_connection_healthy(self, mock_get_driver):
+        """Neo4j接続正常"""
+        from api.main import check_neo4j_connection
+
+        mock_session = MagicMock()
+        mock_result = MagicMock()
+        mock_session.run.return_value = mock_result
+        mock_session.__enter__ = MagicMock(return_value=mock_session)
+        mock_session.__exit__ = MagicMock(return_value=False)
+
+        mock_driver = MagicMock()
+        mock_driver.session.return_value = mock_session
+        mock_get_driver.return_value = mock_driver
+
+        result = check_neo4j_connection()
+
+        assert result["status"] == "healthy"
+        assert "latency_ms" in result
+
+    @patch('api.main.get_driver')
+    def test_check_neo4j_connection_driver_none(self, mock_get_driver):
+        """ドライバーがNoneの場合"""
+        from api.main import check_neo4j_connection
+
+        mock_get_driver.return_value = None
+
+        result = check_neo4j_connection()
+
+        assert result["status"] == "unhealthy"
+        assert "Driver not initialized" in result["error"]
+
+    @patch('api.main.get_driver')
+    def test_check_neo4j_connection_exception(self, mock_get_driver):
+        """接続時に例外が発生"""
+        from api.main import check_neo4j_connection
+
+        mock_get_driver.side_effect = Exception("Connection refused")
+
+        result = check_neo4j_connection()
+
+        assert result["status"] == "unhealthy"
+        assert "Connection refused" in result["error"]
+
+
+class TestExceptionHandlers:
+    """例外ハンドラーのテスト"""
+
+    def test_validation_exception_handler(self, auth_client):
+        """バリデーションエラーハンドラー"""
+        response = auth_client.post(
+            "/api/v1/records",
+            json={
+                "recipient_name": "",
+                "date": "2024-01-15",
+                "category": "訪問",
+                "content": "test",
+            },
+        )
+
+        assert response.status_code == 422
+        data = response.json()
+        assert "errors" in data
+        assert len(data["errors"]) > 0
+        assert data["errors"][0]["code"] == "VALIDATION_ERROR"
+        assert "meta" in data
+
+    @pytest.mark.asyncio
+    async def test_general_exception_handler_direct(self):
+        """一般例外ハンドラー（直接呼び出し）"""
+        from api.main import general_exception_handler
+        from fastapi import Request
+        from fastapi.testclient import TestClient
+        from api.main import app
+
+        mock_request = MagicMock(spec=Request)
+        test_exception = ValueError("Test error")
+
+        response = await general_exception_handler(mock_request, test_exception)
+
+        assert response.status_code == 500
+        import json
+        data = json.loads(response.body.decode())
+        assert "errors" in data
+        assert data["errors"][0]["code"] == "INTERNAL_ERROR"
+        assert "meta" in data
+
 
 # =============================================================================
 # 受給者APIテスト

@@ -278,3 +278,205 @@ class TestHashChainIntegrity:
 
         # ハッシュが異なることでチェーン切断を検出
         assert correct_hash2 != wrong_hash2
+
+
+class TestCreateAuditLogValidation:
+    """create_audit_log関数のバリデーションテスト"""
+
+    @pytest.fixture
+    def mock_db(self):
+        """データベース関連のモック"""
+        from unittest.mock import patch
+        with patch('lib.audit.run_query') as mock_query, \
+             patch('lib.audit.run_query_single') as mock_single:
+            mock_single.return_value = {'hash': 'a' * 64, 'max_seq': 1}
+            mock_query.return_value = [{'timestamp': '2024-01-01', 'action': 'CREATE'}]
+            yield mock_query, mock_single
+
+    def test_invalid_action_raises_error(self, mock_db):
+        """無効なアクションでエラー発生"""
+        from lib.audit import create_audit_log
+        from lib.validation import ValidationError
+
+        with pytest.raises(ValidationError):
+            create_audit_log(
+                user_name="test_user",
+                action="INVALID",
+                resource_type="Test",
+                resource_id="123"
+            )
+
+    def test_none_user_raises_error(self, mock_db):
+        """Noneのユーザー名でエラー発生"""
+        from lib.audit import create_audit_log
+        from lib.validation import ValidationError
+
+        with pytest.raises(ValidationError):
+            create_audit_log(
+                user_name=None,
+                action="CREATE",
+                resource_type="Test",
+                resource_id="123"
+            )
+
+    def test_invalid_result_status_raises_error(self, mock_db):
+        """無効な結果ステータスでエラー発生"""
+        from lib.audit import create_audit_log
+        from lib.validation import ValidationError
+
+        with pytest.raises(ValidationError):
+            create_audit_log(
+                user_name="test_user",
+                action="CREATE",
+                resource_type="Test",
+                resource_id="123",
+                result_status="INVALID"
+            )
+
+    def test_valid_crud_actions(self, mock_db):
+        """有効なCRUDアクションでエラーなし"""
+        from lib.audit import create_audit_log
+
+        for action in ["CREATE", "READ", "UPDATE", "DELETE"]:
+            # 例外が発生しないことを確認
+            result = create_audit_log(
+                user_name="test_user",
+                action=action,
+                resource_type="Test",
+                resource_id="123"
+            )
+            assert result is not None
+
+    def test_valid_auth_actions(self, mock_db):
+        """有効な認証アクションでエラーなし"""
+        from lib.audit import create_audit_log
+
+        for action in ["LOGIN", "LOGOUT"]:
+            result = create_audit_log(
+                user_name="test_user",
+                action=action,
+                resource_type="Session",
+                resource_id="session123"
+            )
+            assert result is not None
+
+
+class TestGetAuditLogsValidation:
+    """get_audit_logs関数のバリデーションテスト"""
+
+    @pytest.fixture
+    def mock_db(self):
+        """データベース関連のモック"""
+        from unittest.mock import patch
+        with patch('lib.audit.run_query') as mock_query:
+            mock_query.return_value = []
+            yield mock_query
+
+    def test_invalid_start_date_raises_error(self, mock_db):
+        """無効な開始日でエラー発生"""
+        from lib.audit import get_audit_logs
+        from lib.validation import ValidationError
+
+        with pytest.raises(ValidationError):
+            get_audit_logs(start_date="invalid-date")
+
+    def test_invalid_end_date_raises_error(self, mock_db):
+        """無効な終了日でエラー発生"""
+        from lib.audit import get_audit_logs
+        from lib.validation import ValidationError
+
+        with pytest.raises(ValidationError):
+            get_audit_logs(end_date="2024-13-01")
+
+    def test_valid_date_range(self, mock_db):
+        """有効な日付範囲でエラーなし"""
+        from lib.audit import get_audit_logs
+
+        result = get_audit_logs(
+            start_date="2024-01-01",
+            end_date="2024-12-31"
+        )
+        assert isinstance(result, list)
+
+    def test_no_filters(self, mock_db):
+        """フィルタなしで呼び出し可能"""
+        from lib.audit import get_audit_logs
+
+        result = get_audit_logs()
+        assert isinstance(result, list)
+
+
+class TestVerifyChainIntegrityFunction:
+    """verify_chain_integrity関数のテスト"""
+
+    @pytest.fixture
+    def mock_db(self):
+        """データベース関連のモック"""
+        from unittest.mock import patch
+        with patch('lib.audit.run_query') as mock_query, \
+             patch('lib.audit.run_query_single') as mock_single:
+            yield mock_query, mock_single
+
+    def test_empty_chain_is_valid(self, mock_db):
+        """空のチェーンは有効"""
+        mock_query, mock_single = mock_db
+        mock_query.return_value = []
+
+        from lib.audit import verify_chain_integrity
+
+        result = verify_chain_integrity()
+
+        assert result['is_valid'] is True
+        assert result['total_entries'] == 0
+        assert result['errors'] == []
+
+    def test_result_structure(self, mock_db):
+        """結果構造の確認"""
+        mock_query, mock_single = mock_db
+        mock_query.return_value = []
+
+        from lib.audit import verify_chain_integrity
+
+        result = verify_chain_integrity()
+
+        assert 'is_valid' in result
+        assert 'total_entries' in result
+        assert 'first_invalid_seq' in result
+        assert 'errors' in result
+
+
+class TestGetChainStatusFunction:
+    """get_chain_status関数のテスト"""
+
+    def test_empty_chain_status(self):
+        """空のチェーンステータス"""
+        from unittest.mock import patch
+        with patch('lib.audit.run_query_single') as mock_single:
+            mock_single.side_effect = [
+                {'total_entries': 0, 'latest_sequence': None, 'first_sequence': None},
+                None
+            ]
+
+            from lib.audit import get_chain_status
+
+            result = get_chain_status()
+
+            assert result['total_entries'] == 0
+            assert result['genesis_hash'] == GENESIS_HASH
+
+    def test_chain_with_entries(self):
+        """エントリがあるチェーンステータス"""
+        from unittest.mock import patch
+        with patch('lib.audit.run_query_single') as mock_single:
+            mock_single.side_effect = [
+                {'total_entries': 10, 'latest_sequence': 10, 'first_sequence': 1},
+                {'timestamp': '2024-01-01', 'sequenceNumber': 10, 'entryHash': 'abc123'}
+            ]
+
+            from lib.audit import get_chain_status
+
+            result = get_chain_status()
+
+            assert result['total_entries'] == 10
+            assert result['latest_sequence'] == 10
+            assert result['latest_hash'] == 'abc123'

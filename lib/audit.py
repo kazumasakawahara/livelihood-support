@@ -11,7 +11,7 @@ Manifesto: Livelihood Protection Support & Dignity Graph 準拠
 import uuid
 import hashlib
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from .db_connection import run_query, run_query_single, log
@@ -156,8 +156,8 @@ def create_audit_log(
     # ユーザー名の検証
     validated_user = validate_string(user_name, "user_name", required=True, max_length=100)
 
-    # タイムスタンプとID生成
-    timestamp = datetime.utcnow().isoformat() + "Z"
+    # タイムスタンプとID生成（UTC）
+    timestamp = datetime.now(tz=timezone.utc).isoformat()
     request_id = f"req_{uuid.uuid4().hex[:12]}"
 
     # ハッシュチェーン: 前のエントリのハッシュを取得

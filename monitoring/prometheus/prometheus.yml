@@ -15,6 +15,7 @@ rule_files:
 
 # Alertmanager設定
 alerting:
+
   alertmanagers:
     - static_configs:
         - targets:

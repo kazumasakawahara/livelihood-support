@@ -5,7 +5,9 @@ Manifesto: Livelihood Protection Support & Dignity Graph 準拠（Version 1.4）
 ケース記録・物語風テキストからの情報抽出、JSON構造化処理
 第7の柱（金銭的安全と多機関連携）対応
 
-セキュリティ基準: TECHNICAL_STANDARDS.md 7.2準拠（プロンプトインジェクション対策）
+セキュリティ基準:
+- TECHNICAL_STANDARDS.md 7.2準拠（プロンプトインジェクション対策）
+- TECHNICAL_STANDARDS.md 8準拠（外部AI利用時の匿名化）
 """
 
 import os
@@ -13,9 +15,16 @@ import re
 import json
 import sys
 from datetime import date
+from typing import Optional
 from dotenv import load_dotenv
 from agno.agent import Agent
 from agno.models.google import Gemini
+
+from lib.anonymizer import (
+    Anonymizer,
+    AnonymizationResult,
+    create_anonymizer,
+)
 
 load_dotenv()
 
@@ -781,5 +790,204 @@ def detect_collaboration_signals(text: str) -> list[dict]:
     for p in collab_patterns:
         if re.search(p["pattern"], text):
             detected.append({"type": p["type"]})
-    
+
     return detected
+
+
+# =============================================================================
+# 匿名化統合機能（TECHNICAL_STANDARDS.md Section 8準拠）
+# =============================================================================
+
+# グローバル匿名化エンジンインスタンス
+_anonymizer: Optional[Anonymizer] = None
+
+
+def get_anonymizer() -> Anonymizer:
+    """匿名化エンジンを取得（シングルトン）"""
+    global _anonymizer
+    if _anonymizer is None:
+        _anonymizer = create_anonymizer()
+    return _anonymizer
+
+
+def extract_from_text_with_anonymization(
+    text: str,
+    recipient_name: str = None,
+    use_anonymization: bool = True
+) -> tuple[dict | None, AnonymizationResult | None]:
+    """
+    外部AI利用時の匿名化対応版テキスト抽出
+
+    TECHNICAL_STANDARDS.md Section 8.2 準拠
+    外部AIサービスにデータを送信する前に自動的にPIIを匿名化し、
+    結果を受信後に再識別（復元）します。
+
+    Args:
+        text: 入力テキスト（ケース記録、面談メモなど）
+        recipient_name: 既存受給者名（追記モードの場合）
+        use_anonymization: 匿名化を使用するかどうか（デフォルト: True）
+
+    Returns:
+        (構造化されたdict, 匿名化結果) のタプル
+        - 失敗時は (None, None)
+        - use_anonymization=False の場合は (dict, None)
+
+    Raises:
+        InputValidationError: 入力検証に失敗した場合
+
+    Usage:
+        # 外部AI利用時（匿名化あり）
+        extracted, anon_result = extract_from_text_with_anonymization(text)
+        if extracted:
+            # 抽出されたデータは復元済み
+            print(f"受給者: {extracted['recipient']['name']}")
+
+        # ローカルLLM利用時（匿名化なし）
+        extracted, _ = extract_from_text_with_anonymization(text, use_anonymization=False)
+    """
+    # 入力値検証（TECHNICAL_STANDARDS.md 7.2準拠）
+    try:
+        validated_text, validated_name = validate_input_text(text, recipient_name)
+    except InputValidationError as e:
+        log(f"入力検証エラー: {e}", "ERROR")
+        raise
+
+    anonymizer = get_anonymizer()
+    anon_result: Optional[AnonymizationResult] = None
+
+    # 匿名化処理
+    if use_anonymization:
+        anon_result = anonymizer.anonymize_text(validated_text)
+        prompt_text = anon_result.anonymized_text
+        log(f"匿名化完了: {anon_result.stats['total_pii_count']}件のPIIを検出・置換")
+
+        # 受給者名も匿名化
+        if validated_name:
+            name_anon = anonymizer.anonymize_text(validated_name)
+            anon_name = name_anon.anonymized_text
+            # マッピングを統合
+            anon_result.pii_mappings.extend(name_anon.pii_mappings)
+            prompt_text = f"【対象受給者: {anon_name}】\n\n{prompt_text}"
+        else:
+            prompt_text = prompt_text
+    else:
+        prompt_text = validated_text
+        if validated_name:
+            prompt_text = f"【対象受給者: {validated_name}】\n\n{validated_text}"
+
+    agent = get_agent()
+
+    try:
+        log(f"テキスト抽出開始（{len(prompt_text)}文字）{'[匿名化済み]' if use_anonymization else ''}")
+        response = agent.run(
+            f"以下のケース記録・報告書から情報を抽出してJSON形式で出力してください：\n\n{prompt_text}"
+        )
+
+        extracted = parse_json_from_response(response.content)
+
+        if extracted:
+            # 匿名化を使用した場合は復元処理
+            if use_anonymization and anon_result:
+                extracted = anonymizer.restore_data(extracted, anon_result.pii_mappings)
+                log("データ復元完了")
+
+            # 追記モードの場合、受給者名を設定
+            if validated_name and extracted.get('recipient'):
+                extracted['recipient']['name'] = validated_name
+
+            name = extracted.get('recipient', {}).get('name', '不明')
+            log(f"抽出成功: 受給者={name}")
+
+            # 抽出サマリーをログ出力
+            _log_extraction_summary(extracted)
+
+            return extracted, anon_result
+
+        log("JSONパース失敗: AIレスポンスからJSONを抽出できませんでした", "WARN")
+        return None, anon_result
+
+    except Exception as e:
+        log(f"抽出エラー: {type(e).__name__}: {e}", "ERROR")
+        return None, anon_result
+
+
+def anonymize_text_for_external_ai(text: str) -> tuple[str, AnonymizationResult]:
+    """
+    外部AI送信用にテキストを匿名化
+
+    TECHNICAL_STANDARDS.md Section 8.1 準拠
+
+    Args:
+        text: 匿名化対象のテキスト
+
+    Returns:
+        (匿名化されたテキスト, 匿名化結果)
+
+    Usage:
+        # 匿名化
+        anonymized_text, result = anonymize_text_for_external_ai(text)
+
+        # 外部AIに送信
+        ai_response = external_ai.process(anonymized_text)
+
+        # 復元
+        restored_response = restore_text_from_external_ai(ai_response, result)
+    """
+    anonymizer = get_anonymizer()
+    result = anonymizer.anonymize_text(text)
+    log(f"テキスト匿名化完了: {result.stats['total_pii_count']}件のPIIを検出")
+    return result.anonymized_text, result
+
+
+def restore_text_from_external_ai(
+    text: str,
+    anon_result: AnonymizationResult
+) -> str:
+    """
+    外部AIからの応答を復元（再識別）
+
+    TECHNICAL_STANDARDS.md Section 8.2 準拠
+
+    Args:
+        text: 匿名化されたテキスト（AIからの応答）
+        anon_result: 匿名化時の結果
+
+    Returns:
+        復元されたテキスト
+    """
+    anonymizer = get_anonymizer()
+    restored = anonymizer.restore_text(text, anon_result.pii_mappings)
+    log("テキスト復元完了")
+    return restored
+
+
+def get_anonymization_stats(text: str) -> dict:
+    """
+    テキスト内のPII統計情報を取得（匿名化は行わない）
+
+    Args:
+        text: 分析対象のテキスト
+
+    Returns:
+        PII統計情報
+    """
+    anonymizer = get_anonymizer()
+    matches = anonymizer.detect_pii(text)
+
+    type_counts = {}
+    for match in matches:
+        type_name = match.pii_type.value
+        type_counts[type_name] = type_counts.get(type_name, 0) + 1
+
+    return {
+        "total_pii_count": len(matches),
+        "pii_by_type": type_counts,
+        "details": [
+            {
+                "type": m.pii_type.value,
+                "preview": m.original[:10] + "..." if len(m.original) > 10 else m.original,
+                "confidence": m.confidence
+            }
+            for m in matches
+        ]
+    }
