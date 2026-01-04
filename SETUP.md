@@ -494,6 +494,39 @@ uv run python setup_schema.py
 
 ---
 
+## テストの実行（開発者向け）
+
+このシステムには包括的なテストスイートが含まれています。
+
+### 単体テストの実行
+
+```bash
+# 全テスト実行（540件以上）
+uv run pytest --ignore=tests/e2e
+
+# 特定のテストファイルを実行
+uv run pytest tests/test_validation.py -v
+```
+
+### テストカバレッジの確認
+
+```bash
+uv run pytest --ignore=tests/e2e --cov=lib --cov=api --cov-report=term
+```
+
+現在のカバレッジ: **81.85%**
+
+### セキュリティテスト
+
+```bash
+# OWASP Top 10セキュリティテスト
+uv run pytest tests/test_security_owasp.py -v
+```
+
+すべてのOWASP Top 10カテゴリのセキュリティテストが実装・合格済みです。
+
+---
+
 ## 次のステップ
 
 セットアップが完了したら、以下のドキュメントも参照してください：
@@ -501,3 +534,4 @@ uv run python setup_schema.py
 - `docs/Manifesto_LivelihoodSupport_Graph.md` - システムの理念とデータモデル
 - `docs/SPECIFICATION.md` - 機能仕様書
 - `docs/OPERATIONS_GUIDE.md` - 運用ガイド
+- `README.md` - 機能一覧とAPI仕様

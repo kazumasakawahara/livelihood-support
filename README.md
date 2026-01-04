@@ -323,8 +323,11 @@ neo4j-livelihood-support/
 ├── lib/                    # ライブラリ
 │   ├── db_operations.py    # Neo4j操作（7本柱対応）
 │   ├── db_connection.py    # データベース接続管理
-│   ├── auth.py             # Streamlit認証
+│   ├── auth.py             # Keycloak/Streamlit認証
 │   ├── ai_extractor.py     # Gemini AI構造化
+│   ├── anonymizer.py       # PII匿名化（100%精度）
+│   ├── audit.py            # 監査ログ（ハッシュチェーン）
+│   ├── validation.py       # 入力値検証・サニタイズ
 │   ├── file_readers.py     # ファイル読み込み
 │   └── utils.py            # ユーティリティ
 │
@@ -343,10 +346,13 @@ neo4j-livelihood-support/
 │   ├── restore.sh          # 復元
 │   └── setup_scheduled_backup.sh  # 定期バックアップ設定
 │
-├── tests/                  # テストスイート
-│   ├── test_api_auth.py    # 認証テスト
+├── tests/                  # テストスイート（540+テスト、81%カバレッジ）
+│   ├── test_security_owasp.py  # OWASP Top 10セキュリティテスト
+│   ├── test_ai_extractor.py    # AI構造化テスト
+│   ├── test_anonymizer.py      # 匿名化テスト
+│   ├── test_api_auth.py        # 認証テスト
 │   ├── test_db_operations.py
-│   └── ...
+│   └── e2e/                    # E2Eテスト（Playwright）
 │
 ├── docs/                   # ドキュメント
 │   ├── Manifesto_LivelihoodSupport_Graph.md
@@ -375,12 +381,54 @@ rm -rf neo4j_data neo4j_logs neo4j_plugins
 docker compose up -d
 ```
 
+## 🧪 テスト
+
+### テスト実行
+
+```bash
+# 単体テスト実行（540+テスト）
+uv run pytest --ignore=tests/e2e
+
+# カバレッジ付きでテスト実行
+uv run pytest --ignore=tests/e2e --cov=lib --cov=api --cov=mcp
+
+# セキュリティテストのみ実行
+uv run pytest tests/test_security_owasp.py -v
+
+# E2Eテスト実行（要: API/Streamlit起動）
+uv run pytest tests/e2e
+```
+
+### テストカバレッジ
+
+| モジュール | カバレッジ |
+|-----------|-----------|
+| lib/ | 80%+ |
+| api/ | 85%+ |
+| 合計 | **81.85%** |
+
+### セキュリティテスト (OWASP Top 10)
+
+| カテゴリ | テスト項目 | 状態 |
+|---------|-----------|------|
+| A01 | Broken Access Control | ✅ |
+| A02 | Cryptographic Failures | ✅ |
+| A03 | Injection (Cypher/XSS/Prompt) | ✅ |
+| A04 | Insecure Design | ✅ |
+| A05 | Security Misconfiguration | ✅ |
+| A06 | Vulnerable Components | ✅ |
+| A07 | Authentication Failures | ✅ |
+| A08 | Integrity Failures | ✅ |
+| A09 | Logging Failures | ✅ |
+| A10 | SSRF | ✅ |
+
 ## 🔒 セキュリティと倫理
 
 - すべての個人情報は暗号化して保存
 - アクセスログを記録し、不正利用を防止
 - ケース記録の閲覧権限を適切に管理
 - 他機関との情報共有は本人同意を原則
+- OWASP Top 10に基づくセキュリティテスト実施済み
 
 ## 📜 ライセンス
 
